@@ -190,9 +190,11 @@ def serve_elbow_curve(kmeans,df):
 def serve_swarm_plot(df):
     figure = make_subplots(rows=1, cols=3)
 
+    colors = cl.flipper()['qual']['12']['Paired']
+
     # Top left
     figure.add_trace(
-        go.Scatter(x=df.cluster, y=df.price, mode="markers", name="yaxis data"),
+        go.Scatter(x=df.cluster, y=df.price, mode="markers", marker=Marker(color=colors) , name="yaxis data"),
         row=1, col=1)
 
     # Top right

@@ -402,13 +402,13 @@ def update_svm_graph(
     df = generate_data(dataset=dataset)
 
     Nc = range(1, 20)
-    # kmeans= [KMeans(n_clusters=i) for i in Nc]
-    # scaled_df = NormalizeData(df,column_names)
-    # elbow_curve = figs.serve_elbow_curve(kmeans, scaled_df)
-    # kmeans= KMeans(n_clusters = number_cluster, random_state=0).fit(scaled_df)
+    kmeans= [KMeans(n_clusters=i) for i in Nc]
+    scaled_df = NormalizeData(df,column_names)
+    elbow_curve = figs.serve_elbow_curve(kmeans, scaled_df)
+    kmeans= KMeans(n_clusters = number_cluster, random_state=0).fit(scaled_df)
 
-    # scaled_df = dfAfterKmeans(kmeans, scaled_df)
-    # swarm_plot = figs.serve_swarm_plot(scaled_df)
+    scaled_df = dfAfterKmeans(kmeans, scaled_df)
+    swarm_plot = figs.serve_swarm_plot(scaled_df)
 
     # X_train, X_test, y_train, y_test = train_test_split(
     #     X, y, test_size=0.4, random_state=42
@@ -467,20 +467,20 @@ def update_svm_graph(
         #         style={"display": "none"},
         #     ),
         # ),
-        # html.Div(
-        #     id="graphs-container",
-        #     children = [dcc.Loading(
-        #             className="graph-wrapper",
-        #             children=dcc.Graph(id="elbow-curve", figure=elbow_curve),
-        #         ),
-        #         dcc.Loading(
-        #             className="graph-wrapper",
-        #             children=dcc.Graph(
-        #                 id="swarm-plot", figure=swarm_plot
-        #             ),
-        #         ),
-        #     ]
-        # ),
+        html.Div(
+            id="graphs-container",
+            children = [dcc.Loading(
+                    className="graph-wrapper",
+                    children=dcc.Graph(id="elbow-curve", figure=elbow_curve),
+                ),
+                dcc.Loading(
+                    className="graph-wrapper",
+                    children=dcc.Graph(
+                        id="swarm-plot", figure=swarm_plot
+                    ),
+                ),
+            ]
+        ),
     ]
 
 

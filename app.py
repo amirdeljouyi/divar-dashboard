@@ -379,7 +379,7 @@ def disable_slider_param_gamma_power(kernel):
         Input("slider-dataset-noise-level", "value"),
         Input("radio-svm-parameter-shrinking", "value"),
         Input("slider-threshold", "value"),
-        Input("cluster-number", "value"),
+        Input("number-cluster", "value"),
     ],
 )
 def update_svm_graph(

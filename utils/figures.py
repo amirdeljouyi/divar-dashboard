@@ -2,6 +2,7 @@ import colorlover as cl
 import plotly.graph_objs as go
 import numpy as np
 from sklearn import metrics
+from plotly.subplots import make_subplots
 
 
 def serve_prediction_plot(
@@ -187,21 +188,32 @@ def serve_elbow_curve(kmeans,df):
     return figure
 
 def serve_swarm_plot(df):
-    fig = make_subplots(rows=1, cols=3)
+    figure = make_subplots(rows=1, cols=3)
 
     # Top left
-    fig.add_trace(
+    figure.add_trace(
         go.Scatter(x=df.cluster, y=df.price, mode="markers", name="yaxis data"),
         row=1, col=1)
 
     # Top right
-    fig.add_trace(
+    figure.add_trace(
         go.Scatter(x=df.cluster, y=df.mileage, mode="markers", name="yaxis3 data"),
         row=1, col=2)
 
     # Bottom left
-    fig.add_trace(
-        go.Scatter(x=[1, 2, 3], y=df.price, mode="markers", name="yaxis5 data"),
+    figure.add_trace(
+        go.Scatter(x=df.cluster, y=df.price, mode="markers", name="yaxis5 data"),
         row=1, col=3)
 
-    return fig
+    layout = go.Layout(
+        title="Swarm Plot",
+        margin=dict(l=50, r=50, t=100, b=10),
+        legend=dict(bgcolor="#282b38", font={"color": "#a5b1cd"}, orientation="h"),
+        plot_bgcolor="#282b38",
+        paper_bgcolor="#282b38",
+        font={"color": "#a5b1cd"},
+    )
+
+    figure.update_layout(layout)
+
+    return figure

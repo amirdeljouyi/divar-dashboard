@@ -405,7 +405,7 @@ def update_svm_graph(
     kmeans= [KMeans(n_clusters=i) for i in Nc]
     scaled_df = NormalizeData(df,column_names)
     elbow_curve = figs.serve_elbow_curve(kmeans, scaled_df)
-    kmeans= KMeans(n_clusters = number_cluster, random_state=0).fit(scaled_df_pride)
+    kmeans= KMeans(n_clusters = number_cluster, random_state=0).fit(scaled_df)
 
     scaled_df = dfAfterKmeans(kmeans, scaled_df)
     swarm_plot = figs.serve_swarm_plot(scaled_df)

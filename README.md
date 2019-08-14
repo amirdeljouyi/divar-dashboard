@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Support Vector Machine (SVM) Explorer [![Mentioned in Awesome Machine Learning](https://awesome.re/mentioned-badge.svg)](https://github.com/josephmisiti/awesome-machine-learning)
 
 This is a learning tool and exploration app made using the Dash interactive Python framework developed by [Plotly](https://plot.ly/).
@@ -71,3 +72,6 @@ The heatmap configuration is heavily inspired from the [scikit-learn Classificat
 
 The idea of the [ROC Curve, the Matrix Pie Chart and Thresholding](https://github.com/nicolaskruchten/dash-roc) came from @nickruchten. The app would not have been as complete without his insightful advice.
 
+=======
+# divar-dashboard
+>>>>>>> 6b3ea2f73ac036c19e96c56fc51ff67562cf4e8e

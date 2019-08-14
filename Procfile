@@ -1,1 +1,1 @@
-web: gunicorn --pythonpath apps/dash-svm app:server
+web: gunicorn --pythonpath app:server

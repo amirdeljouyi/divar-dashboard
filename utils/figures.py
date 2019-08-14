@@ -194,7 +194,7 @@ def serve_swarm_plot(df):
 
     # Top left
     figure.add_trace(
-        go.Scatter(x=df.cluster, y=df.price, mode="markers", marker=Marker(color=colors) , name="yaxis data"),
+        go.Scatter(x=df.cluster, y=df.price, mode="markers", marker=go.Marker(color=colors) , name="yaxis data"),
         row=1, col=1)
 
     # Top right

@@ -5,6 +5,7 @@ import dash
 import dash_core_components as dcc
 import dash_html_components as html
 from dash.dependencies import Input, Output, State
+import dash_table
 
 
 import pandas as pd
@@ -25,6 +26,11 @@ from sklearn.model_selection import train_test_split
 from inspect import signature
 
 
+class Dataset:
+    def __init__(self, df):
+        self.df = df
+
+
 drc = importlib.import_module("utils.dash_reusable_components")
 figs = importlib.import_module("utils.figures")
 
@@ -34,11 +40,62 @@ app = dash.Dash(
         {"name": "viewport", "content": "width=device-width, initial-scale=1.0"}
     ],
 )
+app.config['suppress_callback_exceptions'] = True
 server = app.server
-column_names = ['mileage','price','year']
-df_pride = pd.read_excel(open('Divar Split.xlsx', 'rb'),sheet_name='pride')
-df_peugeot206 = pd.read_excel(open('Divar Split.xlsx', 'rb'),sheet_name='peugeot 206')
-df_peugeot405 =pd.read_excel(open('Divar Split.xlsx', 'rb'),sheet_name='peugeot 405')
+column_names = ['mileage', 'price', 'year']
+df_pride = pd.read_excel(open('Divar Split.xlsx', 'rb'), sheet_name='pride')
+df_peugeot206 = pd.read_excel(
+    open('Divar Split.xlsx', 'rb'), sheet_name='peugeot 206')
+df_peugeot405 = pd.read_excel(
+    open('Divar Split.xlsx', 'rb'), sheet_name='peugeot 405')
+
+df = df_peugeot405
+
+
+def detect_outlier_zscore(data, threshold):
+    outliers = pd.DataFrame([], columns=['ID', 'sqdist', 'cluster'])
+    mean = np.mean(data.sqdist)
+    std = np.std(data.sqdist)
+
+    for y in data.itertuples():
+        z_score = (y.sqdist - mean)/std
+        if np.abs(z_score) > threshold:
+            outliers = outliers.append(
+                {'ID': y.ID, 'sqdist': y.sqdist, 'cluster': y.cluster}, ignore_index=True)
+    return outliers
+
+
+def detect_outlier_quantile(data, percent):
+    quantile = data.sqdist.quantile(percent)
+    outliers = pd.DataFrame([], columns=['ID', 'sqdist', 'cluster'])
+    for y in data.itertuples():
+        if y.sqdist > quantile:
+            outliers = outliers.append(
+                {'ID': y.ID, 'sqdist': y.sqdist, 'cluster': y.cluster}, ignore_index=True)
+    return outliers
+
+
+def outlierss(df, number_cluster, outlier_method, threshold):
+    clusters = []
+    outliers = pd.DataFrame([], columns=['ID', 'sqdist', 'cluster'])
+    for i in range(number_cluster):
+        clusters.append(df.loc[df.cluster == i])
+
+        if outlier_method == "zsocre":
+            outliers = outliers.append(detect_outlier_quantile(
+                clusters[i], 0.75), ignore_index=True)
+        else:
+            outliers = outliers.append(detect_outlier_zscore(
+                clusters[i], threshold), ignore_index=True)
+    return outliers
+
+
+def checkTrue(x, outliers, clusterNum):
+    for i in range(clusterNum):
+        if len(outliers.loc[outliers.ID == x]) != 0:
+            return True
+    return False
+
 
 def dfAfterKmeans(kmeans, df):
     dist = kmeans.transform(df)**2
@@ -47,11 +104,13 @@ def dfAfterKmeans(kmeans, df):
     df['ID'] = np.arange(len(df))
     return df
 
-def NormalizeData(df,column_names):
+
+def NormalizeData(df, column_names):
     scaler = preprocessing.StandardScaler()
     scaled_df = scaler.fit_transform(df[column_names])
     scaled_df = pd.DataFrame(scaled_df, columns=column_names)
     return scaled_df
+
 
 def generate_data(dataset):
     if dataset == "pride":
@@ -95,368 +154,298 @@ app.layout = html.Div(
             ],
         ),
         html.Div(
-            id="body",
-            className="container scalable",
+            id="tabs",
+            className="tabs",
             children=[
-                html.Div(
-                    id="app-container",
-                    # className="row",
+                dcc.Tabs(
+                    id="app-tab",
+                    value="tab-1",
+                    className="custom-tabs",
                     children=[
-                        html.Div(
-                            # className="three columns",
-                            id="left-column",
-                            children=[
-                                drc.Card(
-                                    id="first-card",
-                                    children=[
-                                        drc.NamedDropdown(
-                                            name="Select Dataset",
-                                            id="dropdown-select-dataset",
-                                            options=[
-                                                {"label": "Peugeot 405", "value": "peugeot405"},
-                                                {
-                                                    "label": "Peugeot 206",
-                                                    "value": "peugeot206",
-                                                },
-                                                {
-                                                    "label": "Pride",
-                                                    "value": "pride",
-                                                },
-                                            ],
-                                            clearable=False,
-                                            searchable=False,
-                                            value="peugeot405",
-                                        ),
-                                        drc.NamedSlider(
-                                            name="Number of Cluster",
-                                            id="number-cluster",
-                                            min=1,
-                                            max=20,
-                                            step=1,
-                                            marks={
-                                                str(i): str(i)
-                                                for i in range(1,20)
-                                            },
-                                            value=10,
-                                        ),
-                                        drc.NamedSlider(
-                                            name="Noise Level",
-                                            id="slider-dataset-noise-level",
-                                            min=0,
-                                            max=1,
-                                            marks={
-                                                i / 10: str(i / 10)
-                                                for i in range(0, 11, 2)
-                                            },
-                                            step=0.1,
-                                            value=0.2,
-                                        ),
-                                    ],
-                                ),
-                                drc.Card(
-                                    id="button-card",
-                                    children=[
-                                        drc.NamedDropdown(
-                                            name="Outlier Method",
-                                            id="outlier-method",
-                                            options=[
-                                                {
-                                                    "label": "Radial basis function (RBF)",
-                                                    "value": "rbf",
-                                                },
-                                                {"label": "Linear", "value": "linear"},
-                                                {
-                                                    "label": "Polynomial",
-                                                    "value": "poly",
-                                                },
-                                                {
-                                                    "label": "Sigmoid",
-                                                    "value": "sigmoid",
-                                                },
-                                            ],
-                                            value="rbf",
-                                            clearable=False,
-                                            searchable=False,
-                                        ),
-                                        drc.NamedSlider(
-                                            name="Threshold",
-                                            id="slider-threshold",
-                                            min=0,
-                                            max=1,
-                                            value=0.5,
-                                            step=0.01,
-                                        ),
-                                        html.Button(
-                                            "Reset Threshold",
-                                            id="button-zero-threshold",
-                                        ),
-                                    ],
-                                ),
-                                drc.Card(
-                                    id="last-card",
-                                    children=[
-                                        drc.NamedDropdown(
-                                            name="Kernel",
-                                            id="dropdown-svm-parameter-kernel",
-                                            options=[
-                                                {
-                                                    "label": "Radial basis function (RBF)",
-                                                    "value": "rbf",
-                                                },
-                                                {"label": "Linear", "value": "linear"},
-                                                {
-                                                    "label": "Polynomial",
-                                                    "value": "poly",
-                                                },
-                                                {
-                                                    "label": "Sigmoid",
-                                                    "value": "sigmoid",
-                                                },
-                                            ],
-                                            value="rbf",
-                                            clearable=False,
-                                            searchable=False,
-                                        ),
-                                        drc.NamedSlider(
-                                            name="Cost (C)",
-                                            id="slider-svm-parameter-C-power",
-                                            min=-2,
-                                            max=4,
-                                            value=0,
-                                            marks={
-                                                i: "{}".format(10 ** i)
-                                                for i in range(-2, 5)
-                                            },
-                                        ),
-                                        drc.FormattedSlider(
-                                            id="slider-svm-parameter-C-coef",
-                                            min=1,
-                                            max=9,
-                                            value=1,
-                                        ),
-                                        drc.NamedSlider(
-                                            name="Degree",
-                                            id="slider-svm-parameter-degree",
-                                            min=2,
-                                            max=10,
-                                            value=3,
-                                            step=1,
-                                            marks={
-                                                str(i): str(i) for i in range(2, 11, 2)
-                                            },
-                                        ),
-                                        drc.NamedSlider(
-                                            name="Gamma",
-                                            id="slider-svm-parameter-gamma-power",
-                                            min=-5,
-                                            max=0,
-                                            value=-1,
-                                            marks={
-                                                i: "{}".format(10 ** i)
-                                                for i in range(-5, 1)
-                                            },
-                                        ),
-                                        drc.FormattedSlider(
-                                            id="slider-svm-parameter-gamma-coef",
-                                            min=1,
-                                            max=9,
-                                            value=5,
-                                        ),
-                                        html.Div(
-                                            id="shrinking-container",
-                                            children=[
-                                                html.P(children="Shrinking"),
-                                                dcc.RadioItems(
-                                                    id="radio-svm-parameter-shrinking",
-                                                    labelStyle={
-                                                        "margin-right": "7px",
-                                                        "display": "inline-block",
-                                                    },
-                                                    options=[
-                                                        {
-                                                            "label": " Enabled",
-                                                            "value": "True",
-                                                        },
-                                                        {
-                                                            "label": " Disabled",
-                                                            "value": "False",
-                                                        },
-                                                    ],
-                                                    value="True",
-                                                ),
-                                            ],
-                                        ),
-                                    ],
-                                ),
-                            ],
+                        dcc.Tab(
+                            id="general-tab",
+                            label="General Information",
+                            value="tab-1",
+                            className="custom-tab",
+                            selected_className="custom-tab--selected",
                         ),
-                        html.Div(
-                            id="div-graphs",
-                            children=dcc.Graph(
-                                id="graph-sklearn-svm",
-                                figure=dict(
-                                    layout=dict(
-                                        plot_bgcolor="#282b38", paper_bgcolor="#282b38"
-                                    )
-                                ),
-                            ),
+                        dcc.Tab(
+                            id="classification-tab",
+                            label="Classification & Clustering",
+                            value="tab-2",
+                            className="custom-tab",
+                            selected_className="custom-tab--selected",
                         ),
-                    ],
+                        dcc.Tab(
+                            id="query-tab",
+                            label="Query",
+                            value="tab-3",
+                            className="custom-tab",
+                            selected_className="custom-tab--selected",
+                        )
+                    ]
                 )
-            ],
+            ]
         ),
+        html.Div(id="body")
     ]
 )
 
+@app.callback(Output('body', 'children'),
+              [Input('app-tab', 'value')])
+def render_content(tab):
+    if tab == 'tab-1':
+        return html.Div(
+            children=[
+                html.H3("Peugout 405"),
+                html.Div(
+                    children=[
+                        html.Div(
+                            [html.H6(id="well_text"),
+                             html.P("No. Cars")],
+                            id="wells",
+                            className="mini_container",
+                        ),
+                        html.Div(
+                            [html.H6(id="gasText"), html.P("No. Fraud")],
+                            id="gas",
+                            className="mini_container",
+                        ),
+                        html.Div(
+                            [html.H6(id="oilText"), html.P("No. Sincerity")],
+                            id="oil",
+                            className="mini_container",
+                        ),
+                        html.Div(
+                            [html.H6(id="waterText"), html.P("Average Price")],
+                            id="water",
+                            className="mini_container",
+                        ),
+                    ],
+                    id="info-container",
+                    className="row container-display",
+                )
+            ]
+
+        ),
+    elif tab == 'tab-2':
+        return html.Div(
+
+            id="app-container",
+            # className="row",
+            children=[
+                html.Div(
+                    # className="three columns",
+                    id="left-column",
+                    children=[
+                        drc.Card(
+                            id="first-card",
+                            children=[
+                                drc.NamedDropdown(
+                                    name="Select Dataset",
+                                    id="dropdown-select-dataset",
+                                    options=[
+                                        {"label": "Peugeot 405",
+                                         "value": "peugeot405"},
+                                        {
+                                            "label": "Peugeot 206",
+                                            "value": "peugeot206",
+                                        },
+                                        {
+                                            "label": "Pride",
+                                            "value": "pride",
+                                        },
+                                    ],
+                                    clearable=False,
+                                    searchable=False,
+                                    value="peugeot405",
+                                ),
+                                drc.NamedSlider(
+                                    name="Number of Cluster",
+                                    id="number-cluster",
+                                    min=1,
+                                    max=20,
+                                    step=1,
+                                    marks={
+                                        str(i): str(i)
+                                        for i in range(1, 20)
+                                    },
+                                    value=10,
+                                )
+                            ],
+                        ),
+                        drc.Card(
+                            id="button-card",
+                            children=[
+                                drc.NamedDropdown(
+                                    name="Outlier Method",
+                                    id="dropdown-outlier-method",
+                                    options=[
+                                        {
+                                            "label": "Zscore",
+                                            "value": "zscore",
+                                        },
+                                        {
+                                            "label": "Quantile",
+                                            "value": "quantile",
+                                        },
+                                    ],
+                                    value="zscore",
+                                    clearable=False,
+                                    searchable=False,
+                                ),
+                                drc.NamedSlider(
+                                    name="ZScore Threshold",
+                                    id="zscore-threshold",
+                                    min=0,
+                                    max=5,
+                                    value=3,
+                                    step=0.5,
+                                ),
+                                html.Button(
+                                    "Reset Threshold",
+                                    id="button-zero-threshold",
+                                ),
+                            ],
+                        )
+                    ],
+                ),
+                html.Div(id="div-graphs"),
+            ],
+        )
+    elif tab == 'tab-3':
+        return html.Div([
+            dash_table.DataTable(
+                id='datatable-interactivity',
+                columns=[
+                    {"name": i, "id": i, "deletable": True} for i in df.columns
+                ],
+                data=df.to_dict('records'),
+                editable=True,
+                filter_action="native",
+                sort_action="native",
+                sort_mode="multi",
+                row_selectable="multi",
+                row_deletable=True,
+                selected_rows=[],
+                page_action="native",
+                page_current=0,
+                page_size=10,
+                style_table={'overflowX': 'scroll'},
+            ),
+            html.Div(id='datatable-interactivity-container')
+        ])
+
 
 @app.callback(
-    Output("slider-svm-parameter-gamma-coef", "marks"),
-    [Input("slider-svm-parameter-gamma-power", "value")],
-)
-def update_slider_svm_parameter_gamma_coef(power):
-    scale = 10 ** power
-    return {i: str(round(i * scale, 8)) for i in range(1, 10, 2)}
+    Output('datatable-interactivity-container', "children"),
+    [Input('datatable-interactivity', "derived_virtual_data"),
+     Input('datatable-interactivity', "derived_virtual_selected_rows")])
+def update_graphs(rows, derived_virtual_selected_rows):
+    if derived_virtual_selected_rows is None:
+        derived_virtual_selected_rows = []
+
+    dff = df if rows is None else pd.DataFrame(rows)
+
+    colors = ['#7FDBFF' if i in derived_virtual_selected_rows else '#0074D9'
+              for i in range(len(dff))]
+
+    return [
+        dcc.Graph(
+            id=column,
+            figure={
+                "data": [
+                    {
+                        "x": dff["year"],
+                        "y": dff[column],
+                        "type": "bar",
+                        "marker": {"color": "#13c6e9"},
+                    }
+                ],
+                "layout": {
+                    "xaxis": {"automargin": True},
+                    "yaxis": {
+                        "automargin": True,
+                        "title": {"text": column}
+                    },
+                    "height": 250,
+                    "margin": {"t": 10, "l": 10, "r": 10},
+                    "plot_bgcolor": "#282b38",
+                    "paper_bgcolor": "#282b38",
+                    "font": {"color": "#13c6e9"},
+                },
+            },
+        )
+        # check if column exists - user may have deleted it
+        # If `column.deletable=False`, then you don't
+        # need to do this check.
+        for column in column_names if column in dff
+    ]
 
 
 @app.callback(
-    Output("slider-svm-parameter-C-coef", "marks"),
-    [Input("slider-svm-parameter-C-power", "value")],
-)
-def update_slider_svm_parameter_C_coef(power):
-    scale = 10 ** power
-    return {i: str(round(i * scale, 8)) for i in range(1, 10, 2)}
-
-
-@app.callback(
-    Output("slider-threshold", "value"),
+    Output("zscore-threshold", "value"),
     [Input("button-zero-threshold", "n_clicks")],
     [State("graph-sklearn-svm", "figure")],
 )
 def reset_threshold_center(n_clicks, figure):
     if n_clicks:
-        Z = np.array(figure["data"][0]["z"])
-        value = -Z.min() / (Z.max() - Z.min())
+        value = 3
     else:
-        value = 0.4959986285375595
+        value = 2
     return value
-
-
-# Disable Sliders if kernel not in the given list
-@app.callback(
-    Output("slider-svm-parameter-degree", "disabled"),
-    [Input("dropdown-svm-parameter-kernel", "value")],
-)
-def disable_slider_param_degree(kernel):
-    return kernel != "poly"
-
-
-@app.callback(
-    Output("slider-svm-parameter-gamma-coef", "disabled"),
-    [Input("dropdown-svm-parameter-kernel", "value")],
-)
-def disable_slider_param_gamma_coef(kernel):
-    return kernel not in ["rbf", "poly", "sigmoid"]
-
-
-@app.callback(
-    Output("slider-svm-parameter-gamma-power", "disabled"),
-    [Input("dropdown-svm-parameter-kernel", "value")],
-)
-def disable_slider_param_gamma_power(kernel):
-    return kernel not in ["rbf", "poly", "sigmoid"]
 
 
 @app.callback(
     Output("div-graphs", "children"),
     [
-        Input("dropdown-svm-parameter-kernel", "value"),
-        Input("slider-svm-parameter-degree", "value"),
-        Input("slider-svm-parameter-C-coef", "value"),
-        Input("slider-svm-parameter-C-power", "value"),
-        Input("slider-svm-parameter-gamma-coef", "value"),
-        Input("slider-svm-parameter-gamma-power", "value"),
+        Input("dropdown-outlier-method", "value"),
         Input("dropdown-select-dataset", "value"),
-        Input("slider-dataset-noise-level", "value"),
-        Input("radio-svm-parameter-shrinking", "value"),
-        Input("slider-threshold", "value"),
+        Input("zscore-threshold", "value"),
         Input("number-cluster", "value"),
     ],
 )
-def update_svm_graph(
-    kernel,
-    degree,
-    C_coef,
-    C_power,
-    gamma_coef,
-    gamma_power,
-    dataset,
-    noise,
-    shrinking,
-    threshold,
-    number_cluster,
-):
-    t_start = time.time()
-    h = 0.3  # step size in the mesh
-
+def update_cc_graphs(outlier_method, dataset, threshold, number_cluster):
+    print("hi First")
     # Data Pre-processing
     df = generate_data(dataset=dataset)
 
     Nc = range(1, 20)
-    kmeans= [KMeans(n_clusters=i) for i in Nc]
-    scaled_df = NormalizeData(df,column_names)
+    kmeans = [KMeans(n_clusters=i) for i in Nc]
+    scaled_df = NormalizeData(df, column_names)
     elbow_curve = figs.serve_elbow_curve(kmeans, scaled_df)
-    kmeans= KMeans(n_clusters = number_cluster, random_state=0).fit(scaled_df)
+    kmeans = KMeans(n_clusters=number_cluster, random_state=0).fit(scaled_df)
 
     scaled_df = dfAfterKmeans(kmeans, scaled_df)
     swarm_plot = figs.serve_swarm_plot(scaled_df)
 
-    # X_train, X_test, y_train, y_test = train_test_split(
-    #     X, y, test_size=0.4, random_state=42
-    # )
+    outliers = outlierss(scaled_df, number_cluster, outlier_method, threshold)
 
-    # x_min = X[:, 0].min() - 0.5
-    # x_max = X[:, 0].max() + 0.5
-    # y_min = X[:, 1].min() - 0.5
-    # y_max = X[:, 1].max() + 0.5
-    # xx, yy = np.meshgrid(np.arange(x_min, x_max, h), np.arange(y_min, y_max, h))
+    df['Label'] = df['ID'].apply(lambda x: 1 if checkTrue(
+        x, outliers, number_cluster) else 0)
+    scaled_df['Label'] = scaled_df['ID'].apply(
+        lambda x: 1 if checkTrue(x, outliers, number_cluster) else 0)
 
-    # C = C_coef * 10 ** C_power
-    # gamma = gamma_coef * 10 ** gamma_power
+    pca = PCA(n_components=2)
+    principalComponents = pca.fit_transform(scaled_df.loc[:, column_names])
+    principalDf = pd.DataFrame(data=principalComponents, columns=[
+                               'principal component 1', 'principal component 2'])
+    finalDf = pd.concat([principalDf, scaled_df['Label']], axis=1)
 
-    # if shrinking == "True":
-    #     flag = True
-    # else:
-    #     flag = False
+    trainX, testX, trainy, testy = train_test_split(finalDf.loc[:, [
+                                                    'principal component 1', 'principal component 2']], df.loc[:, ['Label']], test_size=0.4, random_state=2)
+    model = KNeighborsClassifier(n_neighbors=3)
+    model.fit(trainX, trainy)
+    probs = model.predict_proba(testX)
+    probs = probs[:, 1]
 
-    # Train SVM
-    # clf = SVC(C=C, kernel=kernel, degree=degree, gamma=gamma, shrinking=flag)
-    # clf.fit(X_train, y_train)
+    roc_figure = figs.serve_roc_curve(
+        model=model, X_test=testX, y_test=testy, probs=probs)
 
-    # # Plot the decision boundary. For that, we will assign a color to each
-    # # point in the mesh [x_min, x_max]x[y_min, y_max].
-    # if hasattr(clf, "decision_function"):
-    #     Z = clf.decision_function(np.c_[xx.ravel(), yy.ravel()])
-    # else:
-    #     Z = clf.predict_proba(np.c_[xx.ravel(), yy.ravel()])[:, 1]
+    precision_recall_figure = figs.serve_precision_recall(
+        model=model, X_test=testX, y_test=testy, probs=probs)
 
-    # prediction_figure = figs.serve_prediction_plot(
-    #     model=clf,
-    #     X_train=X_train,
-    #     X_test=X_test,
-    #     y_train=y_train,
-    #     y_test=y_test,
-    #     Z=Z,
-    #     xx=xx,
-    #     yy=yy,
-    #     mesh_step=h,
-    #     threshold=threshold,
-    # )
-
-    # roc_figure = figs.serve_roc_curve(model=clf, X_test=X_test, y_test=y_test)
-
-    # confusion_figure = figs.serve_pie_confusion_matrix(
-    #     model=clf, X_test=X_test, y_test=y_test, Z=Z, threshold=threshold
-    # )
+    print("hi")
 
     return [
         # html.Div(
@@ -469,16 +458,28 @@ def update_svm_graph(
         # ),
         html.Div(
             id="graphs-container",
-            children = [dcc.Loading(
-                    className="graph-wrapper",
-                    children=dcc.Graph(id="elbow-curve", figure=elbow_curve),
-                ),
+            children=[dcc.Loading(
+                className="graph-wrapper",
+                children=dcc.Graph(id="elbow-curve", figure=elbow_curve),
+            ),
                 dcc.Loading(
                     className="graph-wrapper",
                     children=dcc.Graph(
                         id="swarm-plot", figure=swarm_plot
                     ),
-                ),
+            ),
+                dcc.Loading(
+                    className="graph-wrapper",
+                    children=dcc.Graph(
+                        id="roc-curve", figure=roc_figure
+                    ),
+            ),
+                dcc.Loading(
+                    className="graph-wrapper",
+                    children=dcc.Graph(
+                        id="precision-recall", figure=precision_recall_figure
+                    ),
+            )
             ]
         ),
     ]

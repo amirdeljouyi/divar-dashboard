@@ -97,12 +97,11 @@ def serve_prediction_plot(
     return figure
 
 
-def serve_roc_curve(model, X_test, y_test):
-    decision_test = model.decision_function(X_test)
-    fpr, tpr, threshold = metrics.roc_curve(y_test, decision_test)
+def serve_roc_curve(model, X_test, y_test, probs):
+    fpr, tpr, threshold = metrics.roc_curve(y_test, probs)
 
     # AUC Score
-    auc_score = metrics.roc_auc_score(y_true=y_test, y_score=decision_test)
+    auc_score = metrics.roc_auc_score(y_true=y_test, y_score=probs)
 
     trace0 = go.Scatter(
         x=fpr, y=tpr, mode="lines", name="Test Data", marker={"color": "#13c6e9"}
@@ -123,7 +122,6 @@ def serve_roc_curve(model, X_test, y_test):
     figure = go.Figure(data=data, layout=layout)
 
     return figure
-
 
 def serve_pie_confusion_matrix(model, X_test, y_test, Z, threshold):
     # Compute threshold
@@ -190,19 +188,16 @@ def serve_elbow_curve(kmeans,df):
 def serve_swarm_plot(df):
     figure = make_subplots(rows=1, cols=3)
 
-    colors = cl.flipper()['qual']['12']['Paired']
+    colors = cl.scales['12']['qual']['Paired']
 
-    # Top left
     figure.add_trace(
-        go.Scatter(x=df.cluster, y=df.price, mode="markers", marker=go.Marker(color=colors) , name="yaxis data"),
+        go.Scatter(x=df.cluster, y=df.price, mode="markers", marker=go.scatter.Marker(color=colors) , name="yaxis data"),
         row=1, col=1)
 
-    # Top right
     figure.add_trace(
         go.Scatter(x=df.cluster, y=df.mileage, mode="markers", name="yaxis3 data"),
         row=1, col=2)
 
-    # Bottom left
     figure.add_trace(
         go.Scatter(x=df.cluster, y=df.price, mode="markers", name="yaxis5 data"),
         row=1, col=3)
@@ -217,5 +212,28 @@ def serve_swarm_plot(df):
     )
 
     figure.update_layout(layout)
+
+    return figure
+
+def serve_precision_recall(model, X_test, y_test, probs):
+    yhat = model.predict(X_test)
+    precision, recall, thresholds = metrics.precision_recall_curve(y_test, probs)
+
+    f1 = metrics.f1_score(y_test, yhat)
+    au = metrics.auc(recall, precision)
+    ap = metrics.average_precision_score(y_test, probs)
+    # colors = cycle(['navy', 'turquoise', 'darkorange', 'cornflowerblue', 'teal'])
+    lw = 2
+
+    trace1 = go.Scatter(x=recall, y=precision, 
+                    mode='lines',
+                    line=dict(width=lw, color='navy'),
+                    name='Precision-Recall curve')
+
+    layout = go.Layout(title='Precision-Recall example: AUC={0:0.2f}',
+                    xaxis=dict(title='Recall'),
+                    yaxis=dict(title='Precision'))
+
+    figure = go.Figure(data=[trace1], layout=layout)
 
     return figure

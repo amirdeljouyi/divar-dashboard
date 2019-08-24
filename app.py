@@ -31,27 +31,6 @@ class Dataset:
         self.df = df
 
 
-drc = importlib.import_module("utils.dash_reusable_components")
-figs = importlib.import_module("utils.figures")
-
-app = dash.Dash(
-    __name__,
-    meta_tags=[
-        {"name": "viewport", "content": "width=device-width, initial-scale=1.0"}
-    ],
-)
-app.config['suppress_callback_exceptions'] = True
-server = app.server
-column_names = ['mileage', 'price', 'year']
-df_pride = pd.read_excel(open('Divar Split.xlsx', 'rb'), sheet_name='pride')
-df_peugeot206 = pd.read_excel(
-    open('Divar Split.xlsx', 'rb'), sheet_name='peugeot 206')
-df_peugeot405 = pd.read_excel(
-    open('Divar Split.xlsx', 'rb'), sheet_name='peugeot 405')
-
-df = df_peugeot405
-
-
 def detect_outlier_zscore(data, threshold):
     outliers = pd.DataFrame([], columns=['ID', 'sqdist', 'cluster'])
     mean = np.mean(data.sqdist)
@@ -126,9 +105,38 @@ def generate_data(dataset):
         )
 
 
+def generate_information(df):
+    return len(df.index), len(df[df['Label'] == 1].index), len(df[df['Label'] == 0].index), df["price"].mean()
+
+
+drc = importlib.import_module("utils.dash_reusable_components")
+figs = importlib.import_module("utils.figures")
+
+app = dash.Dash(
+    __name__,
+    meta_tags=[
+        {"name": "viewport", "content": "width=device-width, initial-scale=1.0"}
+    ],
+)
+app.config['suppress_callback_exceptions'] = True
+server = app.server
+column_names = ['mileage', 'price', 'year']
+df_pride = pd.read_excel(open('Divar Split.xlsx', 'rb'), sheet_name='pride')
+df_peugeot206 = pd.read_excel(
+    open('Divar Split.xlsx', 'rb'), sheet_name='peugeot 206')
+df_peugeot405 = pd.read_excel(
+    open('Divar Split.xlsx', 'rb'), sheet_name='peugeot 405')
+
+df = df_peugeot405
+
+info_405 = generate_information(df_peugeot405)
+info_206 = generate_information(df_peugeot206)
+info_pride = generate_information(df_pride)
+
 app.layout = html.Div(
     children=[
         # .container class is fixed, .container.scalable is scalable
+        dcc.Store(id='dataset'),
         html.Div(
             className="banner",
             children=[
@@ -149,8 +157,35 @@ app.layout = html.Div(
                                 )
                             ],
                         ),
+                        html.Div(
+                            children=[
+                                drc.NamedDropdown(
+                                    name="Select Dataset",
+                                    id="dropdown-select-dataset",
+                                    options=[
+                                        {"label": "Peugeot 405",
+                                         "value": "peugeot405"},
+                                        {
+                                            "label": "Peugeot 206",
+                                            "value": "peugeot206",
+                                        },
+                                        {
+                                            "label": "Pride",
+                                            "value": "pride",
+                                        },
+                                    ],
+                                    clearable=False,
+                                    searchable=False,
+                                    value="peugeot405",
+                                ),
+                            ],
+                            style={
+                                "float": "right",
+                                "width": "200px "
+                            }
+                        )
                     ],
-                )
+                ),
             ],
         ),
         html.Div(
@@ -191,38 +226,97 @@ app.layout = html.Div(
     ]
 )
 
+@app.callback(Output('dataset', 'data'),
+              [Input("dropdown-select-dataset", "value")])
+def select_datase(dropdown_select_dataset):
+    return generate_data(dropdown_select_dataset).to_dict('records')
+
 @app.callback(Output('body', 'children'),
               [Input('app-tab', 'value')])
 def render_content(tab):
     if tab == 'tab-1':
         return html.Div(
             children=[
+                dcc.Store(id="aggregate_data"),
                 html.H3("Peugout 405"),
                 html.Div(
                     children=[
                         html.Div(
-                            [html.H6(id="well_text"),
+                            [html.H6(info_405[0]),
                              html.P("No. Cars")],
-                            id="wells",
-                            className="mini_container",
+                            className="mini_container together",
                         ),
                         html.Div(
-                            [html.H6(id="gasText"), html.P("No. Fraud")],
-                            id="gas",
-                            className="mini_container",
+                            [html.H6(info_405[1]),
+                             html.P("No. Fraud")],
+                            className="mini_container together",
                         ),
                         html.Div(
-                            [html.H6(id="oilText"), html.P("No. Sincerity")],
-                            id="oil",
-                            className="mini_container",
+                            [html.H6(info_405[2]),
+                             html.P("No. Sincerity")],
+                            className="mini_container together",
                         ),
                         html.Div(
-                            [html.H6(id="waterText"), html.P("Average Price")],
-                            id="water",
-                            className="mini_container",
+                            [html.H6(info_405[3]),
+                             html.P("Average Price")],
+                            className="mini_container together",
                         ),
                     ],
                     id="info-container",
+                    className="row container-display",
+                ),
+                html.H3("Peugout 206"),
+                html.Div(
+                    children=[
+                        html.Div(
+                            [html.H6(info_206[0]),
+                             html.P("No. Cars")],
+                            className="mini_container together",
+                        ),
+                        html.Div(
+                            [html.H6(info_206[1]),
+                             html.P("No. Fraud")],
+                            className="mini_container together",
+                        ),
+                        html.Div(
+                            [html.H6(info_206[2]),
+                             html.P("No. Sincerity")],
+                            className="mini_container together",
+                        ),
+                        html.Div(
+                            [html.H6(info_206[3]),
+                             html.P("Average Price")],
+                            className="mini_container together",
+                        ),
+                    ],
+                    id="info-container",
+                    className="row container-display",
+                ),
+                html.H3("Pride"),
+                html.Div(
+                    children=[
+                        html.Div(
+                            [html.H6(info_pride[0]),
+                             html.P("No. Cars")],
+                            className="mini_container together",
+                        ),
+                        html.Div(
+                            [html.H6(info_pride[1]),
+                             html.P("No. Fraud")],
+                            className="mini_container together",
+                        ),
+                        html.Div(
+                            [html.H6(info_pride[2]),
+                             html.P("No. Sincerity")],
+                            className="mini_container together",
+                        ),
+                        html.Div(
+                            [html.H6(info_pride[3]),
+                             html.P("Average Price")],
+                            className="mini_container together",
+                        ),
+                    ],
+                    id="app-container",
                     className="row container-display",
                 )
             ]
@@ -235,31 +329,12 @@ def render_content(tab):
             # className="row",
             children=[
                 html.Div(
-                    # className="three columns",
                     id="left-column",
+                    className="left-column",
                     children=[
                         drc.Card(
                             id="first-card",
                             children=[
-                                drc.NamedDropdown(
-                                    name="Select Dataset",
-                                    id="dropdown-select-dataset",
-                                    options=[
-                                        {"label": "Peugeot 405",
-                                         "value": "peugeot405"},
-                                        {
-                                            "label": "Peugeot 206",
-                                            "value": "peugeot206",
-                                        },
-                                        {
-                                            "label": "Pride",
-                                            "value": "pride",
-                                        },
-                                    ],
-                                    clearable=False,
-                                    searchable=False,
-                                    value="peugeot405",
-                                ),
                                 drc.NamedSlider(
                                     name="Number of Cluster",
                                     id="number-cluster",
@@ -307,6 +382,35 @@ def render_content(tab):
                                     id="button-zero-threshold",
                                 ),
                             ],
+                        ),
+                        drc.Card(
+                            id="predict",
+                            children=[
+                                html.H5("Predict"),
+                                dcc.Input(
+                                    placeholder='Enter a Year...',
+                                    type='text',
+                                    value='',
+                                    id='predict-year'
+                                ),
+                                dcc.Input(
+                                    placeholder='Enter a Mileage...',
+                                    type='text',
+                                    value='',
+                                    id='predict-mileage'
+                                ),
+                                dcc.Input(
+                                    placeholder='Enter a Price...',
+                                    type='text',
+                                    value='',
+                                    id='predict-price'
+                                ),
+                                html.Button(
+                                    "Predict",
+                                    id="predict-submit",
+                                ),
+                                html.P("Fraud/Sincerity")
+                            ]
                         )
                     ],
                 ),
@@ -314,13 +418,58 @@ def render_content(tab):
             ],
         )
     elif tab == 'tab-3':
-        return html.Div([
+        return html.Div(
+            id="app-container",
+            children=[
+                html.Div(
+                    id="table-left-column",
+                    className="left-column",
+                    children=[
+                        drc.Card(
+                            id="first-card",
+                            children=[
+                                drc.NamedDropdown(
+                                    name="Group By",
+                                    id="drop-down-group-by",
+                                    options=[
+                                        {"label": "Year",
+                                         "value": "year"},
+                                        {
+                                            "label": "Mileage",
+                                            "value": "mileage",
+                                        },
+                                        {
+                                            "label": "Price",
+                                            "value": "price",
+                                        },
+                                    ],
+                                    clearable=False,
+                                    searchable=False,
+                                    value="year",
+                                ),
+                            ],
+                        ),
+                    ],
+                ),
+                html.Div(
+                    id="table-right-column",
+                    className="right-column",
+                )
+            ]
+        )
+
+@app.callback(Output('table-right-column', 'children'),
+              [Input('dataset', 'data')])
+def update_table(dataset):
+    df = pd.DataFrame.from_dict(dataset)
+    return html.Div(
+        children=[
             dash_table.DataTable(
                 id='datatable-interactivity',
                 columns=[
                     {"name": i, "id": i, "deletable": True} for i in df.columns
                 ],
-                data=df.to_dict('records'),
+                data=df.to_dict("records"),
                 editable=True,
                 filter_action="native",
                 sort_action="native",
@@ -340,46 +489,238 @@ def render_content(tab):
 @app.callback(
     Output('datatable-interactivity-container', "children"),
     [Input('datatable-interactivity', "derived_virtual_data"),
-     Input('datatable-interactivity', "derived_virtual_selected_rows")])
-def update_graphs(rows, derived_virtual_selected_rows):
+     Input('datatable-interactivity', "derived_virtual_selected_rows"),
+     Input('drop-down-group-by', 'value'),
+     Input('dataset', 'data'),
+     ])
+def update_graphs(rows, derived_virtual_selected_rows, drop_down_group_by, dataset):
     if derived_virtual_selected_rows is None:
         derived_virtual_selected_rows = []
 
+    df = pd.DataFrame.from_dict(dataset)
     dff = df if rows is None else pd.DataFrame(rows)
+
+    columns = set(column_names)
+    columns.discard(drop_down_group_by)
 
     colors = ['#7FDBFF' if i in derived_virtual_selected_rows else '#0074D9'
               for i in range(len(dff))]
 
     return [
-        dcc.Graph(
-            id=column,
-            figure={
-                "data": [
-                    {
-                        "x": dff["year"],
-                        "y": dff[column],
-                        "type": "bar",
-                        "marker": {"color": "#13c6e9"},
-                    }
-                ],
-                "layout": {
-                    "xaxis": {"automargin": True},
-                    "yaxis": {
-                        "automargin": True,
-                        "title": {"text": column}
-                    },
-                    "height": 250,
-                    "margin": {"t": 10, "l": 10, "r": 10},
-                    "plot_bgcolor": "#282b38",
-                    "paper_bgcolor": "#282b38",
-                    "font": {"color": "#13c6e9"},
-                },
-            },
+        html.Div(
+            children=[
+                html.Div(
+                    className='pretty_container six columns',
+                    children=[
+                        html.H5("Distribution of Data by {}".format(
+                            drop_down_group_by)),
+                        html.Div(
+                            children=[
+                                dcc.Graph(
+                                    id="ds-{}".format(column),
+                                    figure={
+                                        "data": [
+                                            {
+                                                "x": dff[drop_down_group_by],
+                                                "y": dff[column],
+                                                "type": "bar",
+                                                "marker": {"color": "#13c6e9"},
+                                            }
+                                        ],
+                                        "layout": {
+                                            "xaxis": {"automargin": True},
+                                            "yaxis": {
+                                                "automargin": True,
+                                                "title": {"text": column}
+                                            },
+                                            "height": 250,
+                                            "margin": {"t": 10, "l": 10, "r": 10},
+                                            "plot_bgcolor": "#282b38",
+                                            "paper_bgcolor": "#282b38",
+                                            "font": {"color": "#13c6e9"},
+                                        },
+                                    },
+                                )
+                                for column in columns if column in dff
+                            ]
+                        )
+                    ]
+                ),
+                html.Div(
+                    className='pretty_container six columns',
+                    children=[
+                        html.H5("average group by {}".format(
+                            drop_down_group_by)),
+                        html.Div(
+                            children=[
+                                dcc.Graph(
+                                    id="average-{}".format(column),
+                                    figure={
+                                        "data": [
+                                            {
+                                                "x": dff[drop_down_group_by],
+                                                "y": dff[column],
+                                                "type": "bar",
+                                                "marker": {"color": "#13c6e9"},
+                                                "transforms": [dict(
+                                                    type='aggregate',
+                                                    groups=dff[drop_down_group_by],
+                                                    aggregations=[dict(
+                                                        target='y', func='avg', enabled=True),
+                                                    ]
+                                                )]
+                                            }
+                                        ],
+                                        "layout": {
+                                            "xaxis": {"automargin": True},
+                                            "yaxis": {
+                                                "automargin": True,
+                                                "title": {"text": column}
+                                            },
+                                            "height": 250,
+                                            "margin": {"t": 10, "l": 10, "r": 10},
+                                            "plot_bgcolor": "#282b38",
+                                            "paper_bgcolor": "#282b38",
+                                            "font": {"color": "#13c6e9"},
+                                        },
+                                    },
+                                )
+                                for column in columns if column in dff
+                            ]
+                        )
+                    ]
+                ),
+                html.Div(
+                    className='pretty_container six columns',
+                    children=[
+                        html.H5("min group by {}".format(drop_down_group_by)),
+                        html.Div(
+                            children=[
+                                dcc.Graph(
+                                    id="min-{}".format(column),
+                                    figure={
+                                        "data": [
+                                            {
+                                                "x": dff[drop_down_group_by],
+                                                "y": dff[column],
+                                                "type": "bar",
+                                                "marker": {"color": "#13c6e9"},
+                                                "transforms": [dict(
+                                                    type='aggregate',
+                                                    groups=dff[drop_down_group_by],
+                                                    aggregations=[dict(
+                                                        target='y', func='min', enabled=True),
+                                                    ]
+                                                )]
+                                            }
+                                        ],
+                                        "layout": {
+                                            "xaxis": {"automargin": True},
+                                            "yaxis": {
+                                                "automargin": True,
+                                                "title": {"text": column}
+                                            },
+                                            "height": 250,
+                                            "margin": {"t": 10, "l": 10, "r": 10},
+                                            "plot_bgcolor": "#282b38",
+                                            "paper_bgcolor": "#282b38",
+                                            "font": {"color": "#13c6e9"},
+                                        },
+                                    },
+                                )
+                                for column in columns if column in dff
+                            ]
+                        )
+                    ]
+                ),
+                html.Div(
+                    className='pretty_container six columns',
+                    children=[
+                        html.H5("max group by {}".format(drop_down_group_by)),
+                        html.Div(
+                            children=[
+                                dcc.Graph(
+                                    id="max-{}".format(column),
+                                    figure={
+                                        "data": [
+                                            {
+                                                "x": dff[drop_down_group_by],
+                                                "y": dff[column],
+                                                "type": "bar",
+                                                "marker": {"color": "#13c6e9"},
+                                                "transforms": [dict(
+                                                    type='aggregate',
+                                                    groups=dff[drop_down_group_by],
+                                                    aggregations=[dict(
+                                                        target='y', func='max', enabled=True),
+                                                    ]
+                                                )]
+                                            }
+                                        ],
+                                        "layout": {
+                                            "xaxis": {"automargin": True},
+                                            "yaxis": {
+                                                "automargin": True,
+                                                "title": {"text": column}
+                                            },
+                                            "height": 250,
+                                            "margin": {"t": 10, "l": 10, "r": 10},
+                                            "plot_bgcolor": "#282b38",
+                                            "paper_bgcolor": "#282b38",
+                                            "font": {"color": "#13c6e9"},
+                                        },
+                                    },
+                                )
+                                for column in columns if column in dff
+                            ]
+                        )
+                    ]
+                ),
+                html.Div(
+                    className='pretty_container six columns',
+                    children=[
+                        html.H5("std group by {}".format(drop_down_group_by)),
+                        html.Div(
+                            children=[
+                                dcc.Graph(
+                                    id="std-{}".format(column),
+                                    figure={
+                                        "data": [
+                                            {
+                                                "x": dff[drop_down_group_by],
+                                                "y": dff[column],
+                                                "type": "bar",
+                                                "marker": {"color": "#13c6e9"},
+                                                "transforms": [dict(
+                                                    type='aggregate',
+                                                    groups=dff[drop_down_group_by],
+                                                    aggregations=[dict(
+                                                        target='y', func='stddev', enabled=True),
+                                                    ]
+                                                )]
+                                            }
+                                        ],
+                                        "layout": {
+                                            "xaxis": {"automargin": True},
+                                            "yaxis": {
+                                                "automargin": True,
+                                                "title": {"text": column}
+                                            },
+                                            "height": 250,
+                                            "margin": {"t": 10, "l": 10, "r": 10},
+                                            "plot_bgcolor": "#282b38",
+                                            "paper_bgcolor": "#282b38",
+                                            "font": {"color": "#13c6e9"},
+                                        },
+                                    },
+                                )
+                                for column in columns if column in dff
+                            ]
+                        )
+                    ]
+                ),
+            ]
         )
-        # check if column exists - user may have deleted it
-        # If `column.deletable=False`, then you don't
-        # need to do this check.
-        for column in column_names if column in dff
     ]
 
 
@@ -399,90 +740,114 @@ def reset_threshold_center(n_clicks, figure):
 @app.callback(
     Output("div-graphs", "children"),
     [
+        Input('dataset', 'data'),
         Input("dropdown-outlier-method", "value"),
-        Input("dropdown-select-dataset", "value"),
         Input("zscore-threshold", "value"),
         Input("number-cluster", "value"),
+        Input("predict-submit", "n_clicks"),
+        Input("predict-year", "value"),
+        Input("predict-mileage", "value"),
+        Input("predict-price", "value")
     ],
 )
-def update_cc_graphs(outlier_method, dataset, threshold, number_cluster):
-    print("hi First")
-    # Data Pre-processing
-    df = generate_data(dataset=dataset)
+def update_cc_graphs(dataset, outlier_method, threshold, number_cluster, predict_submit, predict_year, predict_mileage, predict_price):
+    if predict_submit:
+        print("hi First")
+        # Data Pre-processing
+        df = pd.DataFrame.from_dict(dataset)
 
-    Nc = range(1, 20)
-    kmeans = [KMeans(n_clusters=i) for i in Nc]
-    scaled_df = NormalizeData(df, column_names)
-    elbow_curve = figs.serve_elbow_curve(kmeans, scaled_df)
-    kmeans = KMeans(n_clusters=number_cluster, random_state=0).fit(scaled_df)
+        Nc = range(1, 20)
+        kmeans = [KMeans(n_clusters=i) for i in Nc]
+        scaled_df = NormalizeData(df, column_names)
+        elbow_curve = figs.serve_elbow_curve(kmeans, scaled_df)
+        kmeans = KMeans(n_clusters=number_cluster, random_state=0).fit(scaled_df)
 
-    scaled_df = dfAfterKmeans(kmeans, scaled_df)
-    swarm_plot = figs.serve_swarm_plot(scaled_df)
+        scaled_df = dfAfterKmeans(kmeans, scaled_df)
+        swarm_plot = figs.serve_swarm_plot(scaled_df)
 
-    outliers = outlierss(scaled_df, number_cluster, outlier_method, threshold)
+        outliers = outlierss(scaled_df, number_cluster, outlier_method, threshold)
 
-    df['Label'] = df['ID'].apply(lambda x: 1 if checkTrue(
-        x, outliers, number_cluster) else 0)
-    scaled_df['Label'] = scaled_df['ID'].apply(
-        lambda x: 1 if checkTrue(x, outliers, number_cluster) else 0)
+        df['Label'] = df['ID'].apply(lambda x: 1 if checkTrue(
+            x, outliers, number_cluster) else 0)
+        scaled_df['Label'] = scaled_df['ID'].apply(
+            lambda x: 1 if checkTrue(x, outliers, number_cluster) else 0)
 
-    pca = PCA(n_components=2)
-    principalComponents = pca.fit_transform(scaled_df.loc[:, column_names])
-    principalDf = pd.DataFrame(data=principalComponents, columns=[
-                               'principal component 1', 'principal component 2'])
-    finalDf = pd.concat([principalDf, scaled_df['Label']], axis=1)
+        # pca = PCA(n_components=2)
+        # principalComponents = pca.fit_transform(scaled_df.loc[:, column_names])
+        # principalDf = pd.DataFrame(data=principalComponents, columns=[
+        #     'principal component 1', 'principal component 2'])
+        # finalDf = pd.concat([principalDf, scaled_df['Label']], axis=1)
 
-    trainX, testX, trainy, testy = train_test_split(finalDf.loc[:, [
-                                                    'principal component 1', 'principal component 2']], df.loc[:, ['Label']], test_size=0.4, random_state=2)
-    model = KNeighborsClassifier(n_neighbors=3)
-    model.fit(trainX, trainy)
-    probs = model.predict_proba(testX)
-    probs = probs[:, 1]
+        # trainX, testX, trainy, testy = train_test_split(finalDf.loc[:, [
+        #     'principal component 1', 'principal component 2']], df.loc[:, ['Label']], test_size=0.4, random_state=2)
 
-    roc_figure = figs.serve_roc_curve(
-        model=model, X_test=testX, y_test=testy, probs=probs)
+        trainX, testX, trainy, testy = train_test_split(
+            scaled_df.loc[:, column_names], scaled_df.loc[:, ['Label']], test_size=0.4, random_state=2)
 
-    precision_recall_figure = figs.serve_precision_recall(
-        model=model, X_test=testX, y_test=testy, probs=probs)
+        model = KNeighborsClassifier(n_neighbors=3)
+        model.fit(trainX, trainy)
+        probs = model.predict_proba(testX)
+        probs = probs[:, 1]
 
-    print("hi")
+        roc_figure = figs.serve_roc_curve(
+             model=model, X_test=testX, y_test=testy, probs=probs)
 
-    return [
-        # html.Div(
-        #     id="svm-graph-container",
-        #     children=dcc.Loading(
-        #         className="graph-wrapper",
-        #         children=dcc.Graph(id="graph-sklearn-svm", figure=prediction_figure),
-        #         style={"display": "none"},
-        #     ),
-        # ),
-        html.Div(
-            id="graphs-container",
-            children=[dcc.Loading(
-                className="graph-wrapper",
-                children=dcc.Graph(id="elbow-curve", figure=elbow_curve),
-            ),
-                dcc.Loading(
-                    className="graph-wrapper",
-                    children=dcc.Graph(
-                        id="swarm-plot", figure=swarm_plot
+        precision_recall_figure = figs.serve_precision_recall(
+             model=model, X_test=testX, y_test=testy, probs=probs)
+
+        print("hi")
+
+        predict = ""
+
+        test_predict = [[int(predict_mileage), int(
+            predict_price), int(predict_year)]]
+        predict = model.predict(test_predict)
+        print(predict)
+
+        return [
+            # html.Div(
+            #     id="svm-graph-container",
+            #     children=dcc.Loading(
+            #         className="graph-wrapper",
+            #         children=dcc.Graph(id="graph-sklearn-svm", figure=prediction_figure),
+            #         style={"display": "none"},
+            #     ),
+            # ),
+            html.Div(
+                id="graphs-container",
+                children=[
+                    dcc.Loading(
+                        className="graph-wrapper pretty_container four columns",
+                        children=dcc.Graph(id="elbow-curve", figure=elbow_curve),
                     ),
-            ),
-                dcc.Loading(
-                    className="graph-wrapper",
-                    children=dcc.Graph(
-                        id="roc-curve", figure=roc_figure
+                    dcc.Loading(
+                        className="graph-wrapper pretty_container eight columns",
+                        children=dcc.Graph(
+                            id="swarm-plot", figure=swarm_plot
+                        ),
                     ),
-            ),
-                dcc.Loading(
-                    className="graph-wrapper",
-                    children=dcc.Graph(
-                        id="precision-recall", figure=precision_recall_figure
+                    dcc.Loading(
+                        className="graph-wrapper pretty_container six columns",
+                        children=dcc.Graph(
+                            id="roc-curve", figure=roc_figure
+                        ),
                     ),
-            )
-            ]
-        ),
-    ]
+                    dcc.Loading(
+                        className="graph-wrapper pretty_container six columns",
+                        children=dcc.Graph(
+                            id="precision-recall", figure=precision_recall_figure
+                        ),
+                    ),
+                    dcc.Loading(
+                        className="graph-wrapper pretty_container six columns",
+                        children=[
+                            html.H5("Predict"),
+                            html.H6(predict)
+                        ]
+                    )
+                ]
+            ),
+        ]
 
 
 # Running the server

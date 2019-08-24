@@ -16,7 +16,8 @@ def serve_prediction_plot(
 
     # Compute threshold
     scaled_threshold = threshold * (Z.max() - Z.min()) + Z.min()
-    range = max(abs(scaled_threshold - Z.min()), abs(scaled_threshold - Z.max()))
+    range = max(abs(scaled_threshold - Z.min()),
+                abs(scaled_threshold - Z.max()))
 
     # Colorscale
     bright_cscale = [[0, "#ff3700"], [1, "#0b8bff"]]
@@ -81,8 +82,10 @@ def serve_prediction_plot(
     )
 
     layout = go.Layout(
-        xaxis=dict(ticks="", showticklabels=False, showgrid=False, zeroline=False),
-        yaxis=dict(ticks="", showticklabels=False, showgrid=False, zeroline=False),
+        xaxis=dict(ticks="", showticklabels=False,
+                   showgrid=False, zeroline=False),
+        yaxis=dict(ticks="", showticklabels=False,
+                   showgrid=False, zeroline=False),
         hovermode="closest",
         legend=dict(x=0, y=-0.01, orientation="h"),
         margin=dict(l=0, r=0, t=0, b=0),
@@ -123,16 +126,19 @@ def serve_roc_curve(model, X_test, y_test, probs):
 
     return figure
 
+
 def serve_pie_confusion_matrix(model, X_test, y_test, Z, threshold):
     # Compute threshold
     scaled_threshold = threshold * (Z.max() - Z.min()) + Z.min()
-    y_pred_test = (model.decision_function(X_test) > scaled_threshold).astype(int)
+    y_pred_test = (model.decision_function(X_test)
+                   > scaled_threshold).astype(int)
 
     matrix = metrics.confusion_matrix(y_true=y_test, y_pred=y_pred_test)
     tn, fp, fn, tp = matrix.ravel()
 
     values = [tp, fn, fp, tn]
-    label_text = ["True Positive", "False Negative", "False Positive", "True Negative"]
+    label_text = ["True Positive", "False Negative",
+        "False Positive", "True Negative"]
     labels = ["TP", "FN", "FP", "TN"]
     blue = cl.flipper()["seq"]["9"]["Blues"]
     red = cl.flipper()["seq"]["9"]["Reds"]
@@ -153,7 +159,8 @@ def serve_pie_confusion_matrix(model, X_test, y_test, Z, threshold):
     layout = go.Layout(
         title="Confusion Matrix",
         margin=dict(l=50, r=50, t=100, b=10),
-        legend=dict(bgcolor="#282b38", font={"color": "#a5b1cd"}, orientation="h"),
+        legend=dict(bgcolor="#282b38", font={
+                    "color": "#a5b1cd"}, orientation="h"),
         plot_bgcolor="#282b38",
         paper_bgcolor="#282b38",
         font={"color": "#a5b1cd"},
@@ -164,7 +171,8 @@ def serve_pie_confusion_matrix(model, X_test, y_test, Z, threshold):
 
     return figure
 
-def serve_elbow_curve(kmeans,df):
+
+def serve_elbow_curve(kmeans, df):
     score = [kmeans[i].fit(df).score(df) for i in range(len(kmeans))]
     t = np.linspace(0, len(kmeans), len(kmeans))
     trace0 = go.Scatter(
@@ -185,27 +193,31 @@ def serve_elbow_curve(kmeans,df):
     figure = go.Figure(data=data, layout=layout)
     return figure
 
+
 def serve_swarm_plot(df):
     figure = make_subplots(rows=1, cols=3)
 
     colors = cl.scales['12']['qual']['Paired']
 
     figure.add_trace(
-        go.Scatter(x=df.cluster, y=df.price, mode="markers", marker=go.scatter.Marker(color=colors) , name="yaxis data"),
+        go.Scatter(x=df.cluster, y=df.price, mode="markers", name="price"),
         row=1, col=1)
 
     figure.add_trace(
-        go.Scatter(x=df.cluster, y=df.mileage, mode="markers", name="yaxis3 data"),
+        go.Scatter(x=df.cluster, y=df.mileage,
+                   mode="markers", name="mileage"),
         row=1, col=2)
 
     figure.add_trace(
-        go.Scatter(x=df.cluster, y=df.price, mode="markers", name="yaxis5 data"),
+        go.Scatter(x=df.cluster, y=df.year,
+                   mode="markers", name="year"),
         row=1, col=3)
 
     layout = go.Layout(
         title="Swarm Plot",
         margin=dict(l=50, r=50, t=100, b=10),
-        legend=dict(bgcolor="#282b38", font={"color": "#a5b1cd"}, orientation="h"),
+        legend=dict(bgcolor="#282b38", font={
+                    "color": "#a5b1cd"}, orientation="h"),
         plot_bgcolor="#282b38",
         paper_bgcolor="#282b38",
         font={"color": "#a5b1cd"},
@@ -215,9 +227,11 @@ def serve_swarm_plot(df):
 
     return figure
 
+
 def serve_precision_recall(model, X_test, y_test, probs):
     yhat = model.predict(X_test)
-    precision, recall, thresholds = metrics.precision_recall_curve(y_test, probs)
+    precision, recall, thresholds = metrics.precision_recall_curve(
+        y_test, probs)
 
     f1 = metrics.f1_score(y_test, yhat)
     au = metrics.auc(recall, precision)
@@ -225,14 +239,17 @@ def serve_precision_recall(model, X_test, y_test, probs):
     # colors = cycle(['navy', 'turquoise', 'darkorange', 'cornflowerblue', 'teal'])
     lw = 2
 
-    trace1 = go.Scatter(x=recall, y=precision, 
+    trace1 = go.Scatter(x=recall, y=precision,
                     mode='lines',
                     line=dict(width=lw, color='navy'),
                     name='Precision-Recall curve')
 
     layout = go.Layout(title='Precision-Recall example: AUC={0:0.2f}',
                     xaxis=dict(title='Recall'),
-                    yaxis=dict(title='Precision'))
+                    yaxis=dict(title='Precision'),
+                    plot_bgcolor="#282b38",
+                    paper_bgcolor="#282b38",
+                    font={"color": "#a5b1cd"})
 
     figure = go.Figure(data=[trace1], layout=layout)
 

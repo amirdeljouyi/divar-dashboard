@@ -196,7 +196,7 @@
 
 
 @media (min-width: 1301px) {
-    #left-column {
+    .left-column {
         flex: 1 20%;
         margin: 0 3rem 0 0;
         max-height: 83rem;
@@ -210,7 +210,7 @@
 }
 
 @media (max-width: 1300px) {
-    #left-column {
+    .left-column {
         flex: 1 20%;
         margin: 0 3rem 0 0;
         max-height: 70rem;
@@ -234,7 +234,7 @@
 }
 
 @media (max-width: 950px) {
-    #left-column {
+    .left-column {
         width: 100%;
         display: flex;
         flex-direction: column;
@@ -291,8 +291,8 @@
 
 @media (min-width: 951px) {
     #graphs-container {
-        display: flex;
-        flex-direction: column;
+        /* display: flex;
+        flex-direction: column; */
         align-items: stretch;
         justify-content: flex-start;
     }
@@ -513,26 +513,16 @@
     flex-direction: column;
   }
   
-  #wells {
+  .together {
     flex: 1;
   }
   
-  #gas {
-    flex: 1;
-  }
   
   #aggregate_data {
     align-items: center;
   }
   
-  #oil {
-    flex: 1;
-  }
-  
-  #water {
-    flex: 1;
-  }
-  
+
   #tripleContainer {
     display: flex;
     flex: 3;
@@ -547,3 +537,31 @@
 .dash-spreadsheet-container .dash-spreadsheet-inner th {
     background-color: inherit !important;
 }
+
+.right-column{
+    display: flex;
+    flex-direction: column;
+    width: 80%;
+}
+
+#table-right-column{
+    padding: 10px;
+}
+
+.pretty_container {
+    border-radius: 5px;
+    background-color: #2f3445;
+    margin: 10px;
+    padding: 7px;
+    position: relative;
+    box-shadow: 2px 2px 2px #2f3445;
+  }
+
+  .two.columns {
+    width: 16.25%;
+  }
+  
+  .column,
+  .columns {
+    margin-left: 0.5%;
+  }
